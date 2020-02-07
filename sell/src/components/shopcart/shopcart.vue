@@ -12,25 +12,63 @@
           <div class="desc">另需配送费￥{{deliveryPrice}}元</div>
         </div>
         <div class="content-right">
-          <div class="pay">
-            ￥{{minPrice}}元起送
+          <div class="pay" :class="payClass">
+            {{payDesc}}
           </div>
+        </div>
+        <div class="ball-container">
+          <div v-for="(ball,index) in balls">
+            <transition @before-enter="beforeDrop"
+                        @enter="dropping"
+                        @after-enter="afterDrop">
+              <div class="ball" v-show="ball.show">
+                <div class="inner inner-hook"></div>
+              </div>
+
+            </transition>
+          </div>
+        </div>
+      </div>
+      <div class="shopcart-list" v-show="listShow">
+        <div class="list-header">
+          <h1 class=" title">购物车</h1>
+          <span class="empty">清空</span>
+        </div>
+        <div class="list-content">
+          <ul>
+            <li class="food" v-for="food in selectFoods">
+              <span class="name">{{food.name}}</span>
+              <div class="price">
+                <span>￥{{food.price*food.count}}</span>
+              </div>
+              <div class="cartcontrol-wrapper">
+                <cartcontrol></cartcontrol>
+              </div>
+            </li>
+          </ul>
         </div>
       </div>
     </div>
 </template>
 
 <script>
+    import cartcontrol from "../cartcontrol/cartcontrol";
+    const BALL_LEN = 10
+    function createBalls() {
+        let balls = []
+        for (let i = 0; i < BALL_LEN; i++) {
+            balls.push({show: false})
+        }
+        return balls
+    }
     export default {
         name: "shopcart",
         props:{
             selectFoods:{
                 type:Array,
                 default(){
-                    return [{
-                        price:10,
-                        count:1,
-                    }];
+                    return [
+                    ];
                 }
             },
             deliveryPrice:{
@@ -41,6 +79,16 @@
                 type: Number,
                 defalut: 0
             }
+        },
+        data(){
+            return {
+                balls: createBalls(),
+                dropballs: [],
+                fold: true
+            }
+        },
+        created(){
+
         },
         computed:{
             totalPrice(){
@@ -56,7 +104,78 @@
                     count+=food.count;
                 })
                 return count;
+            },
+            payDesc(){
+                if(this.totalPrice === 0){
+                    return `￥${this.minPrice}元起送`;
+
+                }
+                else if(this.totalPrice<this.minPrice){
+
+                    return `还差￥${this.minPrice-this.totalPrice}元起送`;
+                }
+                else{
+                    return '去结算';
+                }
+            },
+            payClass(){
+                if(this.totalPrice<this.minPrice){
+                    return 'not-enough';
+                }
+                return "enough";
+            },
+            listShow(){
+                if(!this.totalCount){
+                    this.fold=true;
+                    return false;
+                }
+                let show = !this.fold;
+                return show;
+            },
+
+        },
+        components:{
+            cartcontrol
+        },
+        methods:{
+
+            drop(el){
+              for (let i=0;i<this.balls.length;i++){
+                  const ball = this.balls[i];
+                  if(!ball.show){
+                      ball.show= true;
+                      ball.el=el;
+                      this.dropballs.push(ball)
+                      return ;
+                  }
+              }
+            },
+            beforeDrop(el){
+                const ball = this.dropballs[this.dropballs.length - 1];
+                const rect = ball.el.getBoundingClientRect();
+                const x = rect.left - 32;
+                const y = -(window.innerHeight - rect.top - 42);
+                el.style.display = '';
+                el.style.transform = el.style.webkitTransform = `translate3d(0,${y}px,0)`;
+                const inner = el.getElementsByClassName('inner-hook')[0];
+                inner.style.transform = inner.style.webkitTransform = `translate3d(${x}px,0,0)`;
+            },
+            afterDrop(el){
+                const ball = this.dropballs.shift();
+                if (ball) {
+                    ball.show = false;
+                    el.style.display = 'none';
+                }
+            },
+            dropping(el){
+                this._reflow = document.body.offsetHeight;
+                el.style.transform = el.style.webkitTransform = `translate3d(0,0,0)`;
+                const inner = el.getElementsByClassName('inner-hook')[0];
+                inner.style.transform = inner.style.webkitTransform = `translate3d(0,0,0)`;
+                //el.addEventListener('transitionend', done)
             }
+
+
         }
     }
 </script>
@@ -146,9 +265,26 @@
           text-align center
           font-size 12px
           font-weight 700
-          background #2b333b
+          &.not-enough
+            background #2b333b
+          &.enough
+            background #00b43c
+            color #fff
 
 
 
+      .ball-container
+        .ball
+          position fixed
+          left 32px
+          bottom 22px
+          z-index 200
+          transition all 0.4s cubic-bezier(0.49,-0.29,0.75,0.41)
+          .inner
+            width 16px
+            height 16px
+            border-radius 50%
+            background rgb(0,160,220)
+            transition: all 0.4s linear
 
 </style>
